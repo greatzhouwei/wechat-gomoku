@@ -1,0 +1,15 @@
+<view class="container">
+  <canvas type="2d" class="chess-board" id="chess" bindtap="handleTap"></canvas>
+  
+  <!-- 添加胜利提示层 -->
+  <view class="win-toast {{gameOver ? 'show' : ''}}" wx:if="{{gameOver}}">
+    <view class="win-content">
+      <view class="win-text">恭喜，{{winner}}胜利了！</view>
+      <button class="restart-btn" bindtap="resetGame">再来一局</button>
+    </view>
+  </view>
+
+  <view class="control-panel">
+    <button bindtap="resetGame">重新开始</button>
+  </view>
+</view> 

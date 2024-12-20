@@ -1,0 +1,69 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  background: #f3d6a0;
+  padding: 0;
+}
+
+.chess-board {
+  width: 95vmin;
+  height: 95vmin;
+  margin: 0;
+}
+
+.control-panel {
+  position: fixed;
+  bottom: 40rpx;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 20rpx;
+}
+
+button {
+  padding: 20rpx 60rpx;
+  background: #4a4a4a;
+  color: white;
+  border-radius: 8rpx;
+  font-size: 32rpx;
+}
+
+/* 添加胜利提示样式 */
+.win-toast {
+  position: fixed;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 16rpx;
+  padding: 30rpx 60rpx;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.win-toast.show {
+  opacity: 1;
+}
+
+.win-content {
+  text-align: center;
+}
+
+.win-text {
+  color: #fff;
+  font-size: 36rpx;
+  margin-bottom: 20rpx;
+}
+
+.restart-btn {
+  background: #4CAF50;
+  color: white;
+  font-size: 28rpx;
+  padding: 12rpx 30rpx;
+  border: none;
+  margin-top: 20rpx;
+} 
