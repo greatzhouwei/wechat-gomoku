@@ -7,7 +7,8 @@ Page({
     board: [],         // 存储棋盘状态
     winner: '',        // 添加winner状态
     moveHistory: [],  // 添加走棋历史记录
-    canUndo: false   // 是否可以悔棋
+    canUndo: false,   // 是否可以悔棋
+    lastMove: null  // 添加最后一手的位置记录
   },
 
   onLoad() {
@@ -88,7 +89,6 @@ Page({
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 1;
 
-    // 添���内边距
     const padding = gridSize / 2;
     
     for (let i = 0; i < this.data.boardSize; i++) {
@@ -101,11 +101,30 @@ Page({
     }
     ctx.stroke();
 
-    // 绘制棋子
+    // 绘制所有棋子
     this.data.board.forEach((row, i) => {
       row.forEach((piece, j) => {
         if (piece !== 0) {
-          this.drawPiece(i, j, piece);
+          const x = j * gridSize + padding;
+          const y = i * gridSize + padding;
+
+          ctx.beginPath();
+          ctx.arc(x, y, gridSize * 0.4, 0, 2 * Math.PI);
+          ctx.fillStyle = piece === 1 ? '#000' : '#fff';
+          ctx.fill();
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          // 只在这里绘制最后一手标记
+          if (this.data.lastMove && 
+              this.data.lastMove.row === i && 
+              this.data.lastMove.col === j) {
+            ctx.beginPath();
+            ctx.arc(x, y, gridSize * 0.1, 0, 2 * Math.PI);
+            ctx.fillStyle = '#ff0000';
+            ctx.fill();
+          }
         }
       });
     });
@@ -121,13 +140,24 @@ Page({
     const x = col * gridSize + padding;
     const y = row * gridSize + padding;
 
+    // 只绘制棋子
     ctx.beginPath();
-    ctx.arc(x, y, gridSize * 0.4, 0, 2 * Math.PI);  // 棋子大小设为格子的0.4倍
+    ctx.arc(x, y, gridSize * 0.4, 0, 2 * Math.PI);
     ctx.fillStyle = player === 1 ? '#000' : '#fff';
     ctx.fill();
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 1;
     ctx.stroke();
+  },
+
+  // 添加音频播放函数
+  playSound(src) {
+    const audio = wx.createInnerAudioContext();
+    audio.src = src;
+    audio.onError((err) => {
+      console.error('音频播放错误:', err);
+    });
+    audio.play();
   },
 
   handleTap(e) {
@@ -194,10 +224,16 @@ Page({
       board: newBoard,
       currentPlayer: this.data.currentPlayer === 1 ? 2 : 1,
       moveHistory,
-      canUndo: true
+      canUndo: true,
+      lastMove: { row, col }  // 记录最后一手位置
     });
 
-    this.drawPiece(row, col, this.data.currentPlayer === 2 ? 1 : 2);
+    // 重绘整个棋盘以显示最后一手标记
+    this.drawBoard();
+
+    // 播放落子音效
+    wx.vibrateShort();
+    this.playSound('/assets/audio/piece.wav');
 
     if (this.checkWin(row, col)) {
       const winner = this.data.currentPlayer === 2 ? '黑棋' : '白棋';
@@ -206,9 +242,8 @@ Page({
         winner: winner
       });
       
-      const audio = wx.createInnerAudioContext();
-      audio.src = '/assets/win.mp3';
-      audio.play();
+      // 播放胜利音效
+      this.playSound('/assets/audio/win.wav');
       
       wx.vibrateShort({
         type: 'medium'
@@ -249,22 +284,26 @@ Page({
   undoMove() {
     if (!this.data.canUndo || this.data.moveHistory.length === 0) return;
 
-    // 取出最后一步棋
     const moveHistory = [...this.data.moveHistory];
     const lastMove = moveHistory.pop();
     
-    // 更新棋盘
     const newBoard = [...this.data.board];
     newBoard[lastMove.row][lastMove.col] = 0;
     
+    // 更新最后一手标记
+    const previousMove = moveHistory.length > 0 ? {
+      row: moveHistory[moveHistory.length - 1].row,
+      col: moveHistory[moveHistory.length - 1].col
+    } : null;
+
     this.setData({
       board: newBoard,
-      currentPlayer: lastMove.player,  // 恢复到上一步的玩家
+      currentPlayer: lastMove.player,
       moveHistory,
-      canUndo: moveHistory.length > 0
+      canUndo: moveHistory.length > 0,
+      lastMove: previousMove  // 更新最后一手位置
     });
 
-    // 重绘棋盘
     this.drawBoard();
   },
 
@@ -272,8 +311,9 @@ Page({
     this.setData({
       gameOver: false,
       winner: '',
-      moveHistory: [],  // 清空历史记录
-      canUndo: false   // 重置悔棋状态
+      moveHistory: [],
+      canUndo: false,
+      lastMove: null  // 重置最后一手标记
     });
     this.initGame();
   },
@@ -290,7 +330,7 @@ Page({
     let liveThreeCount = 0;
 
     directions.forEach(direction => {
-      // 在当前方向上检查是否形成活三
+      // 在当前方向上检是否形成活三
       let count = 1;
       let leftSpace = 0;
       let rightSpace = 0;

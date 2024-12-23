@@ -36,7 +36,10 @@
       "ignore": [],
       "disablePlugins": [],
       "outputPath": ""
-    }
+    },
+    "uploadExclude": [
+      "!assets/audio/*"
+    ]
   },
   "compileType": "miniprogram",
   "libVersion": "2.19.4",
