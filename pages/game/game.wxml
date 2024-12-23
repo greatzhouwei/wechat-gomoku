@@ -10,6 +10,7 @@
   </view>
 
   <view class="control-panel">
+    <button bindtap="undoMove" disabled="{{!canUndo}}">悔棋</button>
     <button bindtap="resetGame">重新开始</button>
   </view>
 </view> 

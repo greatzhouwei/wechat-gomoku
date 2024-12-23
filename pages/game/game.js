@@ -5,7 +5,9 @@ Page({
     currentPlayer: 1, // 1: 黑棋, 2: 白棋
     gameOver: false,
     board: [],         // 存储棋盘状态
-    winner: ''        // 添加winner状态
+    winner: '',        // 添加winner状态
+    moveHistory: [],  // 添加走棋历史记录
+    canUndo: false   // 是否可以悔棋
   },
 
   onLoad() {
@@ -86,7 +88,7 @@ Page({
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 1;
 
-    // 添加内边距
+    // 添���内边距
     const padding = gridSize / 2;
     
     for (let i = 0; i < this.data.boardSize; i++) {
@@ -134,31 +136,65 @@ Page({
     const dpr = wx.getSystemInfoSync().pixelRatio;
     const canvasWidth = this.canvas.width / dpr;
     const gridSize = canvasWidth / (this.data.boardSize - 1);
-    const padding = gridSize / 2;  // 添加相同的padding
+    const padding = gridSize / 2;
     
     const { x, y } = e.touches[0];
     
-    // 减去padding后再计算位置
     const adjustedX = x - padding;
     const adjustedY = y - padding;
     
-    // 计算最接近的棋盘交叉点
     const col = Math.min(Math.max(Math.round(adjustedX / gridSize), 0), this.data.boardSize - 1);
     const row = Math.min(Math.max(Math.round(adjustedY / gridSize), 0), this.data.boardSize - 1);
 
-    // 检查是否在有效范围内
     if (row < 0 || row >= this.data.boardSize || col < 0 || col >= this.data.boardSize) {
       return;
     }
 
     if (this.data.board[row]?.[col] !== 0) return;
 
+    // 检查三三禁手（仅对黑棋生效）
+    if (this.data.currentPlayer === 1) {  // 黑棋
+      // 临时放置棋子检查是否形成三三禁手
+      const tempBoard = [...this.data.board];
+      tempBoard[row] = [...tempBoard[row]];
+      tempBoard[row][col] = this.data.currentPlayer;
+      
+      // 保存原始棋盘状态
+      const originalBoard = this.data.board;
+      this.data.board = tempBoard;
+      
+      // 检查是否形成三三禁手
+      const liveThreeCount = this.checkLiveThree(row, col, this.data.currentPlayer);
+      
+      // 恢复原始棋盘状态
+      this.data.board = originalBoard;
+
+      if (liveThreeCount >= 2) {
+        wx.showToast({
+          title: '三三禁手',
+          icon: 'none',
+          duration: 1500
+        });
+        return;
+      }
+    }
+
+    // 记录这步棋
+    const moveHistory = [...this.data.moveHistory];
+    moveHistory.push({
+      row,
+      col,
+      player: this.data.currentPlayer
+    });
+
     const newBoard = [...this.data.board];
     newBoard[row][col] = this.data.currentPlayer;
     
     this.setData({
       board: newBoard,
-      currentPlayer: this.data.currentPlayer === 1 ? 2 : 1
+      currentPlayer: this.data.currentPlayer === 1 ? 2 : 1,
+      moveHistory,
+      canUndo: true
     });
 
     this.drawPiece(row, col, this.data.currentPlayer === 2 ? 1 : 2);
@@ -170,12 +206,10 @@ Page({
         winner: winner
       });
       
-      // 播放胜利音效（可选）
       const audio = wx.createInnerAudioContext();
-      audio.src = '/assets/win.mp3';  // 需要添加音效文件
+      audio.src = '/assets/win.mp3';
       audio.play();
       
-      // 添加胜利动画效果（可选）
       wx.vibrateShort({
         type: 'medium'
       });
@@ -211,11 +245,96 @@ Page({
     });
   },
 
+  // 添加悔棋功能
+  undoMove() {
+    if (!this.data.canUndo || this.data.moveHistory.length === 0) return;
+
+    // 取出最后一步棋
+    const moveHistory = [...this.data.moveHistory];
+    const lastMove = moveHistory.pop();
+    
+    // 更新棋盘
+    const newBoard = [...this.data.board];
+    newBoard[lastMove.row][lastMove.col] = 0;
+    
+    this.setData({
+      board: newBoard,
+      currentPlayer: lastMove.player,  // 恢复到上一步的玩家
+      moveHistory,
+      canUndo: moveHistory.length > 0
+    });
+
+    // 重绘棋盘
+    this.drawBoard();
+  },
+
   resetGame() {
     this.setData({
       gameOver: false,
-      winner: ''
+      winner: '',
+      moveHistory: [],  // 清空历史记录
+      canUndo: false   // 重置悔棋状态
     });
     this.initGame();
+  },
+
+  // 添加判断活三的方法
+  checkLiveThree(row, col, player) {
+    const directions = [
+      [[0, 1], [0, -1]], // 水平
+      [[1, 0], [-1, 0]], // 垂直
+      [[1, 1], [-1, -1]], // 对角线
+      [[1, -1], [-1, 1]] // 反对角线
+    ];
+
+    let liveThreeCount = 0;
+
+    directions.forEach(direction => {
+      // 在当前方向上检查是否形成活三
+      let count = 1;
+      let leftSpace = 0;
+      let rightSpace = 0;
+      
+      // 检查左边
+      let [dx, dy] = direction[0];
+      let x = row + dx;
+      let y = col + dy;
+      while (x >= 0 && x < this.data.boardSize && y >= 0 && y < this.data.boardSize) {
+        if (this.data.board[x][y] === player) {
+          count++;
+        } else if (this.data.board[x][y] === 0) {
+          leftSpace++;
+          break;
+        } else {
+          break;
+        }
+        x += dx;
+        y += dy;
+      }
+
+      // 检查右边
+      [dx, dy] = direction[1];
+      x = row + dx;
+      y = col + dy;
+      while (x >= 0 && x < this.data.boardSize && y >= 0 && y < this.data.boardSize) {
+        if (this.data.board[x][y] === player) {
+          count++;
+        } else if (this.data.board[x][y] === 0) {
+          rightSpace++;
+          break;
+        } else {
+          break;
+        }
+        x += dx;
+        y += dy;
+      }
+
+      // 判断是否为活三：连续三个子且两端都有空位
+      if (count === 3 && leftSpace === 1 && rightSpace === 1) {
+        liveThreeCount++;
+      }
+    });
+
+    return liveThreeCount;
   }
 }); 

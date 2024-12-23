@@ -21,6 +21,7 @@
   width: 100%;
   display: flex;
   justify-content: center;
+  gap: 20rpx;
   padding: 20rpx;
 }
 
@@ -30,6 +31,11 @@ button {
   color: white;
   border-radius: 8rpx;
   font-size: 32rpx;
+}
+
+button[disabled] {
+  background: #999;
+  color: #ccc;
 }
 
 /* 添加胜利提示样式 */
